@@ -51,7 +51,6 @@ jobs:
             abort "incorrect FAN_OPEN constant" unless Fanotify::FAN_OPEN == 0x20
             puts "Installed #{Gem.loaded_specs.fetch("fanotify.rb").full_name} successfully"
           '
-      - name: Authenticate to RubyGems with Trusted Publishing
-        uses: rubygems/configure-rubygems-credentials@dc5a8d8553e6ee01fc26761a49e99e733d17954a # v2.1.0
       - name: Publish gem
+        uses: rubygems/release-gem@v1
         run: gem push --host https://rubygems.org ./fanotify.rb-*.gem
