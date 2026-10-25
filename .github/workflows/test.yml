@@ -1,0 +1,28 @@
+name: Test
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    # Use a full VM runner; ubuntu-slim cannot grant the required capability.
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    strategy:
+      fail-fast: false
+      matrix:
+        ruby: ["3.1", "3.4"]
+    name: Ruby ${{ matrix.ruby }} with fanotify integration
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - name: Run all tests with CAP_SYS_ADMIN
+        env:
+          RUBY_IMAGE: ruby:${{ matrix.ruby }}
+        run: sh script/test-container

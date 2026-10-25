@@ -1,0 +1,33 @@
+#!/bin/sh
+set -eu
+
+project_dir=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+
+exec docker run --rm \
+  --cap-add=SYS_ADMIN \
+  --mount "type=bind,source=$project_dir,target=/src,readonly" \
+  --env FANOTIFY_REQUIRE_INTEGRATION=1 \
+  "${RUBY_IMAGE:-ruby:3.4}" \
+  sh -eu -c '
+    # Build from source in the container, without reusing host build artifacts.
+    mkdir -p /work/ext/fanotify
+    cp /src/Gemfile /src/fanotify.rb.gemspec /src/Rakefile \
+      /src/README.md /src/CHANGELOG.md /src/LICENSE /work/
+    cp -R /src/lib /src/test /work/
+    cp /src/ext/fanotify/*.c /src/ext/fanotify/*.h \
+      /src/ext/fanotify/extconf.rb /work/ext/fanotify/
+    cd /work
+    bundle install
+    bundle exec rake test
+
+    # Verify the distributable independently of the source checkout and Bundler.
+    gem build --strict fanotify.rb.gemspec
+    gem install --local --no-document --install-dir /tmp/installed-gems ./fanotify.rb-*.gem
+    cd /tmp
+    GEM_HOME=/tmp/installed-gems GEM_PATH=/tmp/installed-gems ruby -e '\''
+      gem "fanotify.rb"
+      require "fanotify"
+      abort "incorrect FAN_OPEN constant" unless Fanotify::FAN_OPEN == 0x20
+      puts "Installed #{Gem.loaded_specs.fetch("fanotify.rb").full_name} successfully"
+    '\''
+  '

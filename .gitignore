@@ -1,0 +1,9 @@
+/.bundle/
+/vendor/
+/*.gem
+/Gemfile.lock
+/ext/fanotify/Makefile
+/ext/fanotify/mkmf.log
+/ext/fanotify/*.o
+/ext/fanotify/*.so
+/lib/fanotify/*.so
