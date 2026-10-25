@@ -144,10 +144,27 @@ an isolated gem directory, and verifies it loads outside the source checkout.
 
 ## Releasing
 
-The planned source repository is `https://github.com/mchristen/fanotify.rb`.
-Before the first release, create and push that repository, verify the gemspec
-author, contact address, repository links, and MIT copyright, and set up a
-RubyGems.org publisher account.
+Releases use the `Publish gem` workflow in `.github/workflows/release.yml`.
+It runs the full CI matrix, checks that the tag matches `Fanotify::VERSION`,
+builds and verifies the package, then authenticates using RubyGems Trusted
+Publishing and publishes that package. No RubyGems API key secret is needed.
+
+Before the first release, create a GitHub environment named `release` under
+the repository settings. On RubyGems.org, configure a
+[pending trusted publisher](https://rubygems.org/profile/oidc/pending_trusted_publishers)
+with these exact values:
+
+| Setting | Value |
+| --- | --- |
+| Gem name | `fanotify.rb` |
+| Repository owner | `mchristen` |
+| Repository name | `fanotify.rb` |
+| Workflow filename | `release.yml` |
+| Environment | `release` |
+
+The workflow is defined directly in this repository; leave the optional
+Workflow Repository Owner and Workflow Repository Name fields blank.
+See the [RubyGems Trusted Publishing guide](https://guides.rubygems.org/trusted-publishing/).
 
 For each release:
 
@@ -165,19 +182,17 @@ For each release:
    Review the unpacked files. The package should contain only the Ruby source,
    native extension source, README, changelog, and license, with no compiled
    objects or local configuration.
-4. Tag the tested commit as `v0.1.0` and push the tag. Authenticate to
-   RubyGems.org, then publish the reviewed artifact:
+4. Tag the tested commit and push the tag to start publication:
 
    ```sh
-   gem push ./fanotify.rb-0.1.0.gem
+   git tag v0.1.0
+   git push origin v0.1.0
    ```
 
 5. Verify `gem install fanotify.rb -v 0.1.0` on Linux and create GitHub release
    notes from the changelog. Published versions cannot be overwritten; fixes
    require a new version.
 
-For automated releases, RubyGems.org also supports
-[Trusted Publishing](https://guides.rubygems.org/trusted-publishing/), including
-a pending publisher for the first release. Configure it for the exact GitHub
-repository and release workflow before enabling automatic pushes. The current
-test workflow validates packages and does not publish them.
+Branch pushes and pull requests only run tests. Pushing a `v*` tag triggers
+publication after both Ruby versions pass, including the required integration
+test. A failed test, package check, or tag/version mismatch prevents publication.

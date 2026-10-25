@@ -1,0 +1,57 @@
+name: Publish gem
+
+on:
+  push:
+    tags: ["v*"]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  test:
+    uses: ./.github/workflows/test.yml
+
+  publish:
+    needs: test
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    environment: release
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v5
+        with:
+          persist-credentials: false
+      - uses: ruby/setup-ruby@v1
+        with:
+          ruby-version: "3.4"
+      - name: Verify tag matches gem version
+        env:
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          ruby -Ilib -rfanotify/version -e '
+            expected = "v#{Fanotify::VERSION}"
+            actual = ENV.fetch("RELEASE_TAG")
+            abort "Expected tag #{expected}, got #{actual}" unless actual == expected
+          '
+      - name: Build gem
+        run: gem build --strict fanotify.rb.gemspec
+      - name: Verify packaged gem installs and loads
+        run: |
+          gem install --local --no-document --install-dir /tmp/installed-gems ./fanotify.rb-*.gem
+          cd /tmp
+          GEM_HOME=/tmp/installed-gems GEM_PATH=/tmp/installed-gems ruby -e '
+            gem "fanotify.rb"
+            require "fanotify"
+            abort "incorrect FAN_OPEN constant" unless Fanotify::FAN_OPEN == 0x20
+            puts "Installed #{Gem.loaded_specs.fetch("fanotify.rb").full_name} successfully"
+          '
+      - name: Authenticate to RubyGems with Trusted Publishing
+        uses: rubygems/configure-rubygems-credentials@dc5a8d8553e6ee01fc26761a49e99e733d17954a # v2.1.0
+      - name: Publish gem
+        run: gem push --host https://rubygems.org ./fanotify.rb-*.gem
