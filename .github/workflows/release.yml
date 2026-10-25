@@ -53,4 +53,3 @@ jobs:
           '
       - name: Publish gem
         uses: rubygems/release-gem@v1
-        run: gem push --host https://rubygems.org ./fanotify.rb-*.gem
