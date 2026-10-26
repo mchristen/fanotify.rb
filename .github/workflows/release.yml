@@ -1,15 +1,13 @@
-name: Publish gem
-
+name: Release
 on:
-  push:
-    tags: ["v*"]
-
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Existing version tag to release (for example v0.1.0)
+        required: true
+        type: string
 permissions:
   contents: read
-
-concurrency:
-  group: release-${{ github.ref }}
-  cancel-in-progress: false
 
 jobs:
   test:
@@ -19,7 +17,7 @@ jobs:
     needs: test
     runs-on: ubuntu-24.04
     timeout-minutes: 15
-    environment: release
+    environment: Release
     permissions:
       contents: read
       id-token: write
@@ -32,7 +30,7 @@ jobs:
           ruby-version: "3.4"
       - name: Verify tag matches gem version
         env:
-          RELEASE_TAG: ${{ github.ref_name }}
+          RELEASE_TAG: ${{ inputs.tag }}
         run: |
           ruby -Ilib -rfanotify/version -e '
             expected = "v#{Fanotify::VERSION}"
