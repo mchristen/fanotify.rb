@@ -1,6 +1,7 @@
 /.bundle/
 /vendor/
 /*.gem
+/pkg/
 /Gemfile.lock
 /ext/fanotify/Makefile
 /ext/fanotify/mkmf.log

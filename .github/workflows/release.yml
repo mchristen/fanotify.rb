@@ -25,9 +25,11 @@ jobs:
       - uses: actions/checkout@v5
         with:
           persist-credentials: false
+          fetch-depth: 0
       - uses: ruby/setup-ruby@v1
         with:
           ruby-version: "3.4"
+          bundler-cache: true
       - name: Verify tag matches gem version
         env:
           RELEASE_TAG: ${{ inputs.tag }}
@@ -37,6 +39,12 @@ jobs:
             actual = ENV.fetch("RELEASE_TAG")
             abort "Expected tag #{expected}, got #{actual}" unless actual == expected
           '
+          tag_commit=$(git rev-parse --verify "refs/tags/$RELEASE_TAG^{commit}")
+          test_commit=$(git rev-parse HEAD)
+          if [ "$tag_commit" != "$test_commit" ]; then
+            echo "Tag $RELEASE_TAG does not point to the tested commit. Select that tag under Run workflow."
+            exit 1
+          fi
       - name: Build gem
         run: gem build --strict fanotify.rb.gemspec
       - name: Verify packaged gem installs and loads

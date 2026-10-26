@@ -144,12 +144,14 @@ an isolated gem directory, and verifies it loads outside the source checkout.
 
 ## Releasing
 
-Releases use the `Publish gem` workflow in `.github/workflows/release.yml`.
+Releases use the manually dispatched `Release` workflow in `.github/workflows/release.yml`.
 It runs the full CI matrix, checks that the tag matches `Fanotify::VERSION`,
-builds and verifies the package, then authenticates using RubyGems Trusted
-Publishing and publishes that package. No RubyGems API key secret is needed.
+builds and verifies the package, then uses `rubygems/release-gem` to authenticate
+using RubyGems Trusted Publishing and run Bundler's `rake release` task.
+No RubyGems API key secret is needed. The supplied tag must already exist
+and point to the commit selected for the workflow run.
 
-Before the first release, create a GitHub environment named `release` under
+Before the first release, create a GitHub environment named `Release` under
 the repository settings. On RubyGems.org, configure a
 [pending trusted publisher](https://rubygems.org/profile/oidc/pending_trusted_publishers)
 with these exact values:
@@ -160,7 +162,7 @@ with these exact values:
 | Repository owner | `mchristen` |
 | Repository name | `fanotify.rb` |
 | Workflow filename | `release.yml` |
-| Environment | `release` |
+| Environment | `Release` |
 
 The workflow is defined directly in this repository; leave the optional
 Workflow Repository Owner and Workflow Repository Name fields blank.
@@ -182,17 +184,22 @@ For each release:
    Review the unpacked files. The package should contain only the Ruby source,
    native extension source, README, changelog, and license, with no compiled
    objects or local configuration.
-4. Tag the tested commit and push the tag to start publication:
+4. Tag the tested commit and push the tag:
 
    ```sh
    git tag v0.1.0
    git push origin v0.1.0
    ```
 
+   In GitHub Actions, open **Release**, select **Run workflow**, choose that
+   tag under **Use workflow from**, and enter the same tag in the `tag` input.
+   The tag must include the release workflow and Bundler release-task setup.
+
 5. Verify `gem install fanotify.rb -v 0.1.0` on Linux and create GitHub release
    notes from the changelog. Published versions cannot be overwritten; fixes
    require a new version.
 
-Branch pushes and pull requests only run tests. Pushing a `v*` tag triggers
-publication after both Ruby versions pass, including the required integration
-test. A failed test, package check, or tag/version mismatch prevents publication.
+Branch pushes and pull requests only run tests. Publication requires a manual
+workflow run and passing tests on both Ruby versions, including the required
+integration test. A failed test, package check, tag/version mismatch, or tag
+pointing to a different commit prevents publication.
