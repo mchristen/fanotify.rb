@@ -19,12 +19,12 @@ jobs:
       fail-fast: false
       matrix:
         ruby: ["3.1", "3.4"]
-    name: Ruby ${{ matrix.ruby }} with fanotify integration
+    name: Both gems on Ruby ${{ matrix.ruby }} with fanotify integration
     steps:
       - uses: actions/checkout@v5
         with:
           persist-credentials: false
-      - name: Run all tests with CAP_SYS_ADMIN
+      - name: Test both gems and verify packages with CAP_SYS_ADMIN
         env:
           RUBY_IMAGE: ruby:${{ matrix.ruby }}
         run: sh script/test-container

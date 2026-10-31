@@ -1,0 +1,33 @@
+#!/bin/sh
+set -eu
+
+project_dir=$(CDPATH= cd -- "$(dirname -- "$0")/.." && pwd)
+package_dir=$(mktemp -d)
+trap 'rm -rf "$package_dir"' EXIT HUP INT TERM
+
+for name in fanotify.rb fanotify_utils; do
+  (
+    cd "$project_dir/gems/$name"
+    gem build --strict --output "$package_dir/$name.gem" "$name.gemspec"
+  )
+  GEM_HOME="$package_dir/installed" GEM_PATH="$package_dir/installed" \
+    gem install --local --no-document "$package_dir/$name.gem"
+done
+
+# Prove both packages load together without source paths or Bundler overrides.
+cd "$package_dir"
+env -u BUNDLE_GEMFILE -u RUBYOPT -u RUBYLIB \
+  GEM_HOME="$package_dir/installed" GEM_PATH="$package_dir/installed" ruby -e '
+    gem "fanotify_utils"
+    require "fanotify_utils"
+    abort "incorrect FAN_OPEN constant" unless Fanotify::FAN_OPEN == 0x20
+    abort "missing utilities namespace" unless defined?(FanotifyUtils::VERSION)
+    %w[fanotify.rb fanotify_utils].each do |name|
+      spec = Gem.loaded_specs.fetch(name)
+      entry = name == "fanotify.rb" ? "fanotify" : "fanotify_utils"
+      abort "foreign code packaged in #{name}" unless spec.files.all? do |path|
+        !path.start_with?("lib/") || path == "lib/#{entry}.rb" || path.start_with?("lib/#{entry}/")
+      end
+      puts "Installed #{spec.full_name} successfully"
+    end
+  '

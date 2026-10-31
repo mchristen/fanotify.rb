@@ -1,0 +1,6 @@
+source "https://rubygems.org"
+
+gemspec
+gem "fanotify.rb", path: "../fanotify.rb"
+gem "rake", "~> 13.0"
+gem "minitest", "~> 5.0"

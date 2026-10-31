@@ -2,8 +2,15 @@ name: Release
 on:
   workflow_dispatch:
     inputs:
+      gem:
+        description: Gem to publish
+        required: true
+        type: choice
+        options:
+          - fanotify.rb
+          - fanotify_utils
       tag:
-        description: Existing version tag to release (for example v0.1.0)
+        description: Existing tag (for example fanotify.rb/v0.1.0 or fanotify_utils/v0.1.0)
         required: true
         type: string
 permissions:
@@ -31,11 +38,15 @@ jobs:
           ruby-version: "3.4"
           bundler-cache: true
       - name: Verify tag matches gem version
+        working-directory: gems/${{ inputs.gem }}
         env:
           RELEASE_TAG: ${{ inputs.tag }}
+          RELEASE_GEM: ${{ inputs.gem }}
         run: |
-          ruby -Ilib -rfanotify/version -e '
-            expected = "v#{Fanotify::VERSION}"
+          ruby -rrubygems -e '
+            spec = Gem::Specification.load("#{ENV.fetch("RELEASE_GEM")}.gemspec")
+            abort "Cannot load gemspec" unless spec
+            expected = "#{spec.name}/v#{spec.version}"
             actual = ENV.fetch("RELEASE_TAG")
             abort "Expected tag #{expected}, got #{actual}" unless actual == expected
           '
@@ -45,17 +56,9 @@ jobs:
             echo "Tag $RELEASE_TAG does not point to the tested commit. Select that tag under Run workflow."
             exit 1
           fi
-      - name: Build gem
-        run: gem build --strict fanotify.rb.gemspec
-      - name: Verify packaged gem installs and loads
-        run: |
-          gem install --local --no-document --install-dir /tmp/installed-gems ./fanotify.rb-*.gem
-          cd /tmp
-          GEM_HOME=/tmp/installed-gems GEM_PATH=/tmp/installed-gems ruby -e '
-            gem "fanotify.rb"
-            require "fanotify"
-            abort "incorrect FAN_OPEN constant" unless Fanotify::FAN_OPEN == 0x20
-            puts "Installed #{Gem.loaded_specs.fetch("fanotify.rb").full_name} successfully"
-          '
+      - name: Build and verify both packages
+        run: sh script/check-packages
       - name: Publish gem
         uses: rubygems/release-gem@v1
+        with:
+          working-directory: gems/${{ inputs.gem }}

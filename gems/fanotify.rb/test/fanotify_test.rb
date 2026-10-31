@@ -8,9 +8,32 @@ require "fanotify"
 
 class FanotifyTest < Minitest::Test
   def test_only_syscall_methods_are_exposed
-    assert_equal [:init, :mark], Fanotify.singleton_methods(false).sort
+    assert_equal [:init, :mark, :name_to_handle_at], Fanotify.singleton_methods(false).sort
     assert_equal 2, Fanotify.method(:init).arity
     assert_equal 5, Fanotify.method(:mark).arity
+    assert_equal 3, Fanotify.method(:name_to_handle_at).arity
+  end
+
+  def test_name_to_handle_preserves_kernel_errors
+    error = assert_raises(SystemCallError) do
+      Fanotify.name_to_handle_at(-1, ".", 0)
+    end
+    assert_match(/name_to_handle_at/, error.message)
+  end
+
+  def test_name_to_handle_rejects_null_bytes
+    assert_raises(ArgumentError) { Fanotify.name_to_handle_at(Fanotify::AT_FDCWD, "a\0b", 0) }
+  end
+
+  def test_name_to_handle_supports_wide_mount_ids
+    flags = Fanotify.const_defined?(:AT_HANDLE_FID) ? Fanotify::AT_HANDLE_FID : 0
+    legacy = Fanotify.name_to_handle_at(Fanotify::AT_FDCWD, ".", flags)
+    wide = Fanotify.name_to_handle_at(Fanotify::AT_FDCWD, ".", flags | 0x001)
+    assert_kind_of Integer, wide[0]
+    assert_operator wide[0], :>, 0
+    assert_equal legacy[1..], wide[1..]
+  rescue Errno::EPERM, Errno::ENOSYS, Errno::EOPNOTSUPP, Errno::EINVAL => error
+    skip "Optional unique mount IDs unavailable: #{error.message}"
   end
 
   def test_constants_match_the_uapi

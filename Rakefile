@@ -1,22 +1,25 @@
 # frozen_string_literal: true
 
-require "rake/testtask"
-require "bundler/gem_tasks"
-require "rbconfig"
+require "rake"
 
-desc "Build the native extension"
-task :compile do
-  Dir.chdir("ext/fanotify") do
-    ruby "extconf.rb" unless File.exist?("Makefile")
-    sh RbConfig::CONFIG.fetch("MAKE", "make")
+GEMS = %w[fanotify.rb fanotify_utils].freeze
+
+%w[test build].each do |operation|
+  desc "#{operation.capitalize} both gems"
+  task operation do
+    GEMS.each do |name|
+      Dir.chdir(File.join(__dir__, "gems", name)) do
+        ruby "-rrake", "-e", "Rake.application.run", "--", operation
+      end
+    end
   end
-  mkdir_p "lib/fanotify"
-  cp "ext/fanotify/fanotify.#{RbConfig::CONFIG.fetch('DLEXT')}", "lib/fanotify/"
 end
 
-Rake::TestTask.new(:test => :compile) do |task|
-  task.libs << "lib"
-  task.pattern = "test/**/*_test.rb"
+desc "Compile the low-level native extension"
+task :compile do
+  Dir.chdir(File.join(__dir__, "gems", "fanotify.rb")) do
+    ruby "-rrake", "-e", "Rake.application.run", "--", "compile"
+  end
 end
 
 task default: :test

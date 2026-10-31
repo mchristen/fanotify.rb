@@ -1,0 +1,13 @@
+# frozen_string_literal: true
+
+require "rake/testtask"
+require "bundler/gem_tasks"
+
+Bundler::GemHelper.tag_prefix = "fanotify_utils/"
+
+Rake::TestTask.new(:test) do |task|
+  task.libs << "lib"
+  task.pattern = "test/**/*_test.rb"
+end
+
+task default: :test
